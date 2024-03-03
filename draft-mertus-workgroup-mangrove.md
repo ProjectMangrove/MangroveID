@@ -1,20 +1,18 @@
 ---
-title: "TODO - Your title"
-abbrev: "TODO - Abbreviation"
+title: "Mangrove"
+abbrev: "IVY"
 category: info
 
 docname: draft-mertus-workgroup-mangrove-latest
 submissiontype: IETF  # also: "independent", "editorial", "IAB", or "IRTF"
-number:
-date:
+number: 0
+date: 3/3/2024
 consensus: true
 v: 3
 # area: AREA
 # workgroup: WG Working Group
 keyword:
- - next generation
- - unicorn
- - sparkling distributed ledger
+ - internet visibility
 venue:
 #  group: WG
 #  type: Working Group
@@ -26,8 +24,8 @@ venue:
 author:
  -
     fullname: "DM"
-    organization: Your Organization Here
-    email: "dm@bluelilac.us"
+    organization: Mangrove
+    email: "daniel.mertus@yale.edu"
 
 normative:
 
