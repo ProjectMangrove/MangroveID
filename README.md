@@ -2,7 +2,7 @@
 
 This is the working area for the individual Internet-Draft, "TODO - Your title".
 
-* [Editor's Copy](https://ProjectMangrove.github.io/MangroveID/#go.draft-mertus-workgroup-mangrove.html)
+* [Editor's Copy](https://ProjectMangrove.github.io/MangroveID/draft-mertus-workgroup-mangrove.html)
 * [Datatracker Page](https://datatracker.ietf.org/doc/draft-mertus-workgroup-mangrove)
 * [Individual Draft](https://datatracker.ietf.org/doc/html/draft-mertus-workgroup-mangrove)
 * [Compare Editor's Copy to Individual Draft](https://ProjectMangrove.github.io/MangroveID/#go.draft-mertus-workgroup-mangrove.diff)
