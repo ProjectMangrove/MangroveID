@@ -17,7 +17,7 @@
 /versioned/
 Gemfile.lock
 archive.json
-draft-mertus-workgroup-mangrove.xml
+# draft-mertus-workgroup-mangrove.xml
 package-lock.json
 report.xml
 !requirements.txt
