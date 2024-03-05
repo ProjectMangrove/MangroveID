@@ -1,0 +1,1782 @@
+<!DOCTYPE html>
+<html lang="en" class="Internet-Draft">
+<head>
+<meta charset="utf-8">
+<meta content="Common,Latin" name="scripts">
+<meta content="initial-scale=1.0" name="viewport">
+<title>Mangrove: A Unified Framework for Internet Topology, Routing Abstraction, and Modeling</title>
+<meta content="Y. Richard Yang" name="author">
+<meta content="Bradley Lewis" name="author">
+<meta content="Daniel Mertus" name="author">
+<meta content="Alex Shi" name="author">
+<meta content="Joseph Zhang" name="author">
+<meta content="
+        This document describes a novel system called Mangrove for obtaining global visibility
+            across the Internet. It achieves this through constructing a comprehensive, unified
+            representation of the Internet's topology and routing behavior by aggregating and
+            indexing diverse data sources. he core challenge is obtaining an accurate, up-to-date
+            model of how packets traverse the global Internet given the Internet's vast scale,
+            dynamic nature, and fragmented visibility across multiple organizations collecting data
+            in different formats. 
+       Mangrove addresses this by leveraging the hierarchical structure and natural
+            abstractions of Internet architecture. It collects and integrates data from traceroute
+            measurements, BGP routing tables, IP allocation records, and active broadband
+            measurements. This multi-source data is partitioned and indexed across multiple
+            granularity levels - geographic regions, autonomous systems, and IP prefixes - allowing
+            effective storage, querying, and scalable processing. 
+       Mangrove constructs a unified topology and routing representation augmented with an
+            extensible ruleset derived from Internet axioms and measured data. For arbitrary
+            source-destination pairs, it computes estimated packet paths and associated performance
+            metrics at the highest feasible granularity level based on available information
+            completeness. The system handles real-time Internet dynamics through incremental rule
+            refinement using detected changes in routing data and measurements. This enables timely
+            updates to the topology model without full recomputation. Mangrove aims to provide
+            researchers and operators an unprecedented unified Internet view for analysis,
+            optimization, planning, security, and regulatory tasks. 
+    " name="description">
+<meta content="xml2rfc 3.20.0" name="generator">
+<meta content="draft-mangrove-workgroup-mangrove-latest" name="ietf.draft">
+<!-- Generator version information:
+  xml2rfc 3.20.0
+    Python 3.11.8
+    ConfigArgParse 1.7
+    google-i18n-address 3.1.0
+    intervaltree 3.1.0
+    Jinja2 3.1.2
+    lxml 4.9.3
+    platformdirs 4.2.0
+    pycountry 22.3.5
+    PyYAML 6.0.1
+    requests 2.31.0
+    setuptools 68.2.2
+    six 1.16.0
+    wcwidth 0.2.13
+-->
+<link href="draft-mangrove-workgroup-mangrove.xml" rel="alternate" type="application/rfc+xml">
+<link href="#copyright" rel="license">
+<style type="text/css">@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Italic'), local('Lora-Italic'), url('https://martinthomson.github.io/rfc-css/fonts/lora-italic-cyrillic-ext.woff2') format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Italic'), local('Lora-Italic'), url('https://martinthomson.github.io/rfc-css/fonts/lora-italic-cyrillic-ext.woff2') format('woff2');
+  unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Italic'), local('Lora-Italic'), url('https://martinthomson.github.io/rfc-css/fonts/lora-italic-vietnamese.woff2') format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+1EA0-1EF9, U+20AB;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Italic'), local('Lora-Italic'), url('https://martinthomson.github.io/rfc-css/fonts/lora-italic-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Italic'), local('Lora-Italic'), url('https://martinthomson.github.io/rfc-css/fonts/lora-italic-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Regular'), local('Lora-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/lora-regular-cyrillic-ext.woff2') format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Regular'), local('Lora-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/lora-regular-cyrillic.woff2') format('woff2');
+  unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Regular'), local('Lora-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/lora-regular-vietnamese.woff2') format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+1EA0-1EF9, U+20AB;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Regular'), local('Lora-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/lora-regular-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Regular'), local('Lora-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/lora-regular-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Lora Bold'), local('Lora-Bold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-bold-cyrillic-ext.woff2') format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Lora Bold'), local('Lora-Bold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-bold-cyrillic.woff2') format('woff2');
+  unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Lora Bold'), local('Lora-Bold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-bold-vietnamese.woff2') format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+1EA0-1EF9, U+20AB;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Lora Bold'), local('Lora-Bold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-bold-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Lora Bold'), local('Lora-Bold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-bold-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: local('Lora SemiBold'), local('Lora-SemiBold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-semibold-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Cabin Condensed';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: local('Cabin Condensed SemiBold'), local('CabinCondensed-SemiBold'), url('https://martinthomson.github.io/rfc-css/fonts/cabincondensed-semibold-vietnamese.woff2') format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+1EA0-1EF9, U+20AB;
+}
+@font-face {
+  font-family: 'Cabin Condensed';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: local('Cabin Condensed SemiBold'), local('CabinCondensed-SemiBold'), url('https://martinthomson.github.io/rfc-css/fonts/cabincondensed-semibold-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Cabin Condensed';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: local('Cabin Condensed SemiBold'), local('CabinCondensed-SemiBold'), url('https://martinthomson.github.io/rfc-css/fonts/cabincondensed-semibold-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Oxygen Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Oxygen Mono'), local('OxygenMono-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/oxygenmono-regular-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Oxygen Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Oxygen Mono'), local('OxygenMono-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/oxygenmono-regular-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  color-scheme: light dark;
+  --background-color: #fff;
+  --text-color: #222;
+  --title-color: #191919;
+  --link-color: #2a6496;
+  --highlight-color: #f9f9f9;
+  --line-color: #eee;
+  --pilcrow-weak: #ddd;
+  --pilcrow-strong: #bbb;
+  --small-font-size: 14.5px;
+  --font-mono: 'Oxygen Mono', monospace;
+  scrollbar-color: #bbb #eee;
+}
+body {
+  max-width: 600px;
+  margin: 75px auto;
+  padding: 0 5px;
+  color: var(--text-color);
+  background-color: var(--background-color);
+  font: 16px/22px "Lora", serif;
+  scroll-behavior: smooth;
+}
+
+.ears {
+  display: none;
+}
+
+/* headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Cabin Condensed", sans-serif;
+  font-weight: 600;
+  margin: 0.8em 0 0.3em;
+  font-size-adjust: 0.5;
+  color: var(--title-color);
+}
+h1#title {
+  font-size: 32px;
+  line-height: 40px;
+  clear: both;
+}
+h1#title, h1#rfcnum {
+  margin: 1.5em 0 0.2em;
+}
+h1#rfcnum + h1#title {
+  margin: 0.2em 0;
+}
+
+h1, h2, h3 {
+  font-size: 22px;
+  line-height: 27px;
+}
+h4, h5, h6 {
+  font-size: 20px;
+  line-height: 24px;
+}
+
+/* general structure */
+.author {
+  padding-bottom: 0.3em;
+}
+#abstract+p {
+  font-size: 18px;
+  line-height: 24px;
+}
+#abstract+p code, #abstract+p samp, #abstract+p tt {
+  font-size: 16px;
+  line-height: 0;
+}
+
+p {
+  padding: 0;
+  margin: 0.5em 0;
+  text-align: left;
+}
+div {
+  margin: 0;
+}
+.alignRight.art-text {
+  background-color: var(--highlight-color);
+  border: 1px solid var(--line-color);
+  border-radius: 3px;
+  padding: 0.5em 1em 0;
+  margin-bottom: 0.5em;
+}
+.alignRight.art-text pre {
+  padding: 0;
+  width: auto;
+}
+.alignRight {
+  margin: 1em 0;
+}
+.alignRight > *:first-child {
+  border: none;
+  margin: 0;
+  float: right;
+  clear: both;
+}
+.alignRight > *:nth-child(2) {
+  clear: both;
+  display: block;
+  border: none;
+}
+svg {
+  display: block;
+}
+/* font-family isn't space-separated, but =~ will have to do */
+svg[font-family~="monospace" i], svg [font-family~="monospace" i] {
+  font-family: var(--font-mono);
+}
+.alignCenter.art-text {
+  background-color: var(--highlight-color);
+  border: 1px solid var(--line-color);
+  border-radius: 3px;
+  padding: 0.5em 1em 0;
+  margin-bottom: 0.5em;
+}
+.alignCenter.art-text pre {
+  padding: 0;
+  width: auto;
+}
+.alignCenter {
+  margin: 1em 0;
+}
+.alignCenter > *:first-child {
+  border: none;
+  /* this isn't optimal, but it's an existence proof.  PrinceXML doesn't
+     support flexbox yet.
+  */
+  display: table;
+  margin: 0 auto;
+}
+
+/* lists */
+ol, ul {
+  padding: 0;
+  margin: 0 0 0.5em 2em;
+}
+:is(ol, ul) :is(ol, ul) {
+  margin-left: 1em;
+}
+li {
+  margin: 0 0 0.25em 0;
+}
+.ulCompact li {
+  margin: 0;
+}
+ul.empty, .ulEmpty {
+  list-style-type: none;
+}
+ul.empty li, .ulEmpty li {
+  margin-top: 0.5em;
+}
+:is(ul, ol).compact, .ulCompact, .olCompact {
+  line-height: 1;
+  margin: 0 0 0 2em;
+}
+
+/* definition lists */
+dl {
+  clear: left;
+  --indent: 3ch;
+  /* --indent: attr(indent ch); not supported in any browser, but we can dream */
+}
+dl.olPercent {
+  --indent: 5ch;
+}
+dl > dt {
+  float: left;
+  margin-right: 2ch;
+  min-width: 8ch;
+}
+dl.dlNewline > dt {
+  float: none;
+}
+dl > dd {
+  margin-bottom: .8em;
+  margin-left: var(--indent) !important; /* stupid element overrides */
+  min-height: 2ex;
+}
+dl.olPercent > dt {
+  min-width: calc(var(--indent) - 2ch);
+}
+:is(dl.compact, .dlCompact) > dd {
+  margin-bottom: 0;
+}
+:is(dl.compact, .dlCompact) > dd > :is(:first-child, .break:first-child + *) {
+  margin-top: 0;
+}
+:is(dl.compact, .dlCompact) > dd > :is(:last-child) {
+  margin-bottom: 0;
+}
+dl > dd > dl {
+  margin-top: 0.5em;
+  margin-bottom: 0;
+}
+:is(dd, span).break {
+  display: none;
+}
+
+/* links */
+a, a[href].selfRef:hover {
+  text-decoration: none;
+}
+a[href] {
+  color: var(--link-color);
+}
+a[href].selfRef, .iref + a[href].internal {
+  color: var(--text-color);
+}
+a[href]:hover {
+  text-decoration: underline;
+}
+a[href].selfRef:hover {
+  background-color: var(--highlight-color);
+}
+a.xref:is(.cite, .auto), :is(#status-of-memo, #copyright) a {
+  white-space: nowrap;
+}
+
+/* Figures */
+tt, code, pre {
+  background-color: var(--highlight-color);
+  font: 14px/22px var(--font-mono);
+}
+tt, code {
+  /* changing the font for inline elements leads to different ascender
+     and descender heights; as we want to retain baseline alignment,
+     remove leading to avoid altering the final height of lines
+     note: this fails if these blocks take an entire line,
+     a different solution would be great */
+  line-height: 0;
+}
+:is(h1, h2, h3, h4, h5, h6) :is(tt, code) {
+  font-size: 84%;
+}
+pre {
+  border: 1px solid var(--line-color);
+  font-size: 13.5px;
+  line-height: 16px;
+  letter-spacing: -0.2px;
+  margin: 5px;
+  padding: 5px;
+}
+img {
+  max-width: 100%;
+}
+figure {
+  margin: 0.5em 0;
+  padding: 0;
+}
+figure blockquote {
+  margin: 0.8em 0.4em 0.4em;
+}
+figcaption, caption {
+  font-style: italic;
+  margin: 0.5em 1.5em;
+  text-align: left;
+}
+@media screen {
+  /* Auto-collapse boilerplate. */
+  :is(#status-of-memo, #copyright) p {
+    margin: -2px 0;
+    max-height: 0;
+    transition: max-height 2s ease, margin 0.5s ease 0.5s;
+    overflow: hidden;
+  }
+  :is(#status-of-memo, #copyright):hover p,
+  :is(#status-of-memo, #copyright) h2:target ~ p {
+    margin: 0.5em 0;
+    max-height: 500px;
+    overflow: auto;
+  }
+  pre, svg {
+    display: inline-block;
+    overflow-x: auto;
+  }
+  pre {
+    max-width: 100%;
+    width: calc(100% - 22px - 1em);
+  }
+  svg {
+    max-width: calc(100% - 22px - 1em);
+  }
+  figure pre {
+    display: block;
+    width: calc(100% - 25px);
+  }
+  :is(pre, svg) + .pilcrow {
+    display: inline-block;
+    vertical-align: text-bottom;
+    padding-bottom: 8px;
+  }
+}
+
+/* aside, blockquote */
+aside, blockquote {
+  margin-left: 0;
+  padding: 0 2em;
+  font-style: italic;
+}
+blockquote {
+  margin: 1em 0;
+}
+cite {
+  display: block;
+  text-align: right;
+  font-style: italic;
+}
+
+/* tables */
+table {
+  max-width: 100%;
+  margin: 0 0 1em;
+  border-collapse: collapse;
+}
+table.right {
+  margin-left: auto;
+}
+table.center {
+  margin-left: auto;
+  margin-right: auto;
+}
+table.left {
+  margin-right: auto;
+}
+thead, tbody {
+  border: 1px solid var(--line-color);
+}
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 5px 10px;
+}
+th {
+  background-color: var(--line-color);
+}
+:is(tr:nth-child(2n), thead+tbody > tr:nth-child(2n+1)) > td {
+  background-color: var(--background-color);
+}
+:is(tr:nth-child(2n+1), thead+tbody > tr:nth-child(2n)) > td {
+  background-color: var(--highlight-color);
+}
+table caption {
+  margin: 0;
+  padding: 3px 0 3px 1em;
+}
+table p {
+  margin: 0;
+}
+
+/* pilcrow */
+a.pilcrow {
+  margin-left: 3px;
+  opacity: 0.2;
+  user-select: none;
+}
+a.pilcrow[href] { color: var(--pilcrow-weak); }
+a.pilcrow[href]:hover { text-decoration: none; }
+@media not print {
+  :hover > a.pilcrow {
+    opacity: 1;
+  }
+  a.pilcrow[href]:hover {
+    color: var(--pilcrow-strong);
+    background-color: transparent;
+  }
+}
+@media print {
+  a.pilcrow {
+    display: none;
+  }
+}
+
+/* misc */
+hr {
+  border: 0;
+  border-top: 1px solid var(--line-color);
+}
+.bcp14 {
+  font-variant: small-caps;
+  font-weight: 600;
+  font-size: var(--small-font-size);
+}
+.role {
+  font-variant: all-small-caps;
+}
+sub, sup {
+  line-height: 1;
+  font-size: 80%;
+}
+
+/* info block */
+#identifiers {
+  margin: 0;
+  font-size: var(--small-font-size);
+  line-height: 18px;
+  --identifier-width: 15ch;
+}
+#identifiers dt {
+  width: var(--identifier-width);
+  min-width: var(--identifier-width);
+  clear: left;
+  float: left;
+  text-align: right;
+  margin-right: 1ch;
+}
+#identifiers dd {
+  margin: 0;
+  margin-left: calc(1em + var(--identifier-width)) !important;
+  min-width: 5em;
+}
+#identifiers .authors .author {
+  display: inline-block;
+  margin-right: 1.5em;
+}
+#identifiers .authors .org {
+  font-style: italic;
+}
+
+/* The prepared/rendered info at the very bottom of the page */
+.docInfo {
+  color: #999;
+  font-size: 0.9em;
+  font-style: italic;
+  margin-top: 2em;
+}
+.docInfo .prepared {
+  float: left;
+}
+.docInfo .prepared {
+  float: right;
+}
+
+/* table of contents */
+#toc {
+  padding: 0.75em 0 2em 0;
+  margin-bottom: 1em;
+}
+#toc nav ul {
+  margin: 0 0.5em 0 0;
+  padding: 0;
+  list-style: none;
+}
+#toc nav li {
+  line-height: 1.3em;
+  margin: 2px 0;
+  padding-left: 1.2em;
+  text-indent: -1.2em;
+}
+#toc a.xref {
+  white-space: normal;
+}
+/* references */
+.references dt {
+  text-align: right;
+  font-weight: bold;
+  min-width: 10ch;
+  margin-right: 1.5ch;
+}
+.references dt:target::before {
+  content: "⇒";
+  width: 15px;
+  margin: 0 10px 0 -25px;
+}
+.references dd {
+  margin-left: 12ch !important;
+  overflow: auto;
+}
+
+.refInstance {
+  margin-bottom: 1.25em;
+}
+
+.references .ascii {
+  margin-bottom: 0.25em;
+}
+
+/* index */
+#rfc\.index\.index + ul {
+  margin-left: 0;
+}
+
+/* authors */
+address.vcard {
+  font-style: normal;
+  margin: 1em 0;
+}
+address.vcard .nameRole {
+  font-weight: 700;
+  margin-left: 0;
+}
+address.vcard .label {
+  margin: 0.5em 0;
+}
+address.vcard .type {
+  display: none;
+}
+.alternative-contact {
+  margin: 1.5em 0 1em;
+}
+hr.addr {
+  border-top: 1px dashed;
+  margin: 0;
+  color: #ddd;
+  max-width: calc(100% - 16px);
+}
+@media (min-width: 500px) {
+  #authors-addresses > section {
+    column-count: 2;
+    column-gap: 20px;
+  }
+  #authors-addresses > section > h2 {
+    column-span: all;
+  }
+  /* hack for break-inside: avoid-column */
+  #authors-addresses address {
+    display: inline-block;
+    break-inside: avoid-column;
+  }
+}
+
+.rfcEditorRemove p:first-of-type {
+  font-style: italic;
+}
+.cref {
+  background-color: rgba(249, 232, 105, 0.3);
+  padding: 2px 4px;
+}
+.crefSource {
+  font-style: italic;
+}
+/* alternative layout for smaller screens */
+@media screen and (max-width: 929px) {
+  #toc {
+    position: fixed;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    padding: 1px 0 0 0;
+    margin: 0;
+    border-bottom: 1px solid #ccc;
+    opacity: 0.6;
+  }
+  #toc.active {
+      opacity: 1;
+  }
+  #toc h2 {
+    margin: 0;
+    padding: 2px 0 2px 6px;
+    padding-right: 1em;
+    font-size: 18px;
+    line-height: 24px;
+    min-width: 190px;
+    text-align: right;
+    background-color: #444;
+    color: white;
+    cursor: pointer;
+  }
+  #toc h2::before { /* css hamburger */
+    float: right;
+    position: relative;
+    width: 1em;
+    height: 1px;
+    left: -164px;
+    margin: 8px 0 0 0;
+    background: white none repeat scroll 0 0;
+    box-shadow: 0 4px 0 0 white, 0 8px 0 0 white;
+    content: "";
+  }
+  #toc nav {
+    display: none;
+    background-color: var(--background-color);
+    padding: 0.5em 1em 1em;
+    overflow: auto;
+    overscroll-behavior: contain;
+    height: calc(100vh - 48px);
+    border-left: 1px solid #ddd;
+  }
+  #toc.active nav {
+    display: block;
+  }
+  /* Make the collapsed ToC header render white on gray also when it's a link */
+  #toc h2 a,
+  #toc h2 a:link,
+  #toc h2 a:focus,
+  #toc h2 a:hover,
+  #toc a.toplink,
+  #toc a.toplink:hover {
+    color: white;
+    background-color: #444;
+    text-decoration: none;
+  }
+  #toc a.toplink {
+    margin-top: 2px;
+  }
+}
+
+/* alternative layout for wide screens */
+@media screen and (min-width: 930px) {
+  body {
+    padding-right: 360px;
+    padding-right: calc(min(180px + 20%, 500px));
+  }
+  #toc {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    right: calc(50vw - 480px);
+    width: 312px;
+    margin: 0;
+    padding: 0;
+    z-index: 1;
+  }
+  #toc h2 {
+    margin: 0;
+    padding: 0.25em 1em 1em 0;
+  }
+  #toc nav {
+    display: block;
+    height: calc(90vh - 84px);
+    bottom: 0;
+    padding: 0.5em 0 2em;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+  #toc nav > ul  {
+    margin-bottom: 2em;
+  }
+  #toc ul {
+    margin: 0 0 0 4px;
+    font-size: var(--small-font-size);
+  }
+  #toc ul :is(p, li) {
+    margin: 2px 0;
+    line-height: 22px;
+  }
+  img { /* future proofing */
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* pagination */
+@media print {
+  body {
+    width: 100%;
+  }
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+  #n-copyright-notice {
+    border-bottom: none;
+  }
+  #toc, #n-introduction {
+    page-break-before: always;
+  }
+  #toc {
+    border-top: none;
+    padding-top: 0;
+  }
+  figure, pre, .vcard {
+    page-break-inside: avoid;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+  :is(h2, h3, h4, h5, h6)+*, dd {
+    page-break-before: avoid;
+  }
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 10pt;
+  }
+  table {
+    border: 1px solid #ddd;
+  }
+  td {
+    border-top: 1px solid #ddd;
+  }
+  .toplink {
+    display: none;
+  }
+}
+
+@page :first {
+  padding-top: 0;
+  @top-left {
+    content: normal;
+    border: none;
+  }
+  @top-center {
+    content: normal;
+    border: none;
+  }
+  @top-right {
+    content: normal;
+    border: none;
+  }
+}
+
+@page {
+  size: A4;
+  margin-bottom: 45mm;
+  padding-top: 20px;
+}
+
+/* Changes introduced to fix issues found during implementation */
+
+/* Separate body from document info even without intervening H1 */
+section {
+  clear: both;
+}
+
+/* Top align author divs, to avoid names without organization dropping level with org names */
+.author {
+  vertical-align: top;
+}
+
+/* Style section numbers with more space between number and title */
+.section-number {
+  padding-right: 0.5em;
+}
+
+/* Add styling for a link in the ToC that points to the top of the document */
+a.toplink {
+  float: right;
+  margin: 8px 0.5em 0;
+}
+
+/* Provide styling for table cell text alignment */
+table .text-left {
+  text-align: left;
+}
+table .text-center {
+  text-align: center;
+}
+table .text-right {
+  text-align: right;
+}
+
+/* Make the alternative author contact information look less like just another
+   author, and group it closer with the primary author contact information */
+.alternative-contact {
+  margin: 0.5em 0 0.25em 0;
+}
+address .non-ascii {
+  margin: 0 0 0 2em;
+}
+
+/* With it being possible to set tables with alignment
+  left, center, and right, { width: 100%; } does not make sense */
+table {
+  width: auto;
+}
+
+/* Avoid reference text that sits in a block with very wide left margin,
+   because of a long floating dt label.*/
+.references dd {
+  overflow: visible;
+}
+
+/* Control caption placement */
+caption {
+  caption-side: bottom;
+}
+
+/* Limit the width of the author address vcard, so names in right-to-left
+   script don't end up on the other side of the page. */
+
+address.vcard {
+  max-width: 20em;
+  margin-right: auto;
+}
+
+/* For address alignment dependent on LTR or RTL scripts */
+address div.left {
+  text-align: left;
+}
+address div.right {
+  text-align: right;
+}
+
+/* Dark mode. */
+@media (prefers-color-scheme: dark) {
+:root {
+  --background-color: #121212;
+  --text-color: #f0f0f0;
+  --title-color: #fff;
+  --link-color: #4da4f0;
+  --highlight-color: #282828;
+  --line-color: #444;
+  --pilcrow-weak: #444;
+  --pilcrow-strong: #666;
+  scrollbar-color: #777 #333;
+}
+}
+
+/* SVG Trick: a prefix match works because only black and white are allowed */
+svg :is([stroke="black"], [stroke^="#000"]) {
+  stroke: var(--text-color);
+}
+svg :is([stroke="white"], [stroke^="#fff"]) {
+  stroke: var(--background-color);
+}
+svg :is([fill="black"], [fill^="#000"], :not([fill])) {
+  fill: var(--text-color);
+}
+svg :is([fill="white"], [fill^="#fff"]) {
+  fill: var(--background-color);
+}
+</style>
+
+</head>
+<body class="xml2rfc">
+<table class="ears">
+<thead><tr>
+<td class="left">Internet-Draft</td>
+<td class="center">Mangrove: A Unified Framework for Intern</td>
+<td class="right">March 2024</td>
+</tr></thead>
+<tfoot><tr>
+<td class="left">Yang, et al.</td>
+<td class="center">Expires 5 September 2024</td>
+<td class="right">[Page]</td>
+</tr></tfoot>
+</table>
+<div id="external-metadata" class="document-information"></div>
+<div id="internal-metadata" class="document-information">
+<dl id="identifiers">
+<dt class="label-workgroup">Workgroup:</dt>
+<dd class="workgroup">ALTO</dd>
+<dt class="label-internet-draft">Internet-Draft:</dt>
+<dd class="internet-draft">draft-mangrove-workgroup-mangrove-latest</dd>
+<dt class="label-published">Published:</dt>
+<dd class="published">
+<time datetime="2024-03-04" class="published">4 March 2024</time>
+    </dd>
+<dt class="label-intended-status">Intended Status:</dt>
+<dd class="intended-status">Standards Track</dd>
+<dt class="label-expires">Expires:</dt>
+<dd class="expires"><time datetime="2024-09-05">5 September 2024</time></dd>
+<dt class="label-authors">Authors:</dt>
+<dd class="authors">
+<div class="author">
+      <div class="author-name">Y. R. Yang</div>
+<div class="org">Yale University</div>
+</div>
+<div class="author">
+      <div class="author-name">B. L. Lewis</div>
+<div class="org">Yale University</div>
+</div>
+<div class="author">
+      <div class="author-name">D. M. Mertus</div>
+<div class="org">Yale University</div>
+</div>
+<div class="author">
+      <div class="author-name">A. S. Shi</div>
+<div class="org">Yale University</div>
+</div>
+<div class="author">
+      <div class="author-name">J. Z. Zhang</div>
+<div class="org">Yale University</div>
+</div>
+</dd>
+</dl>
+</div>
+<h1 id="title">Mangrove: A Unified Framework for Internet Topology, Routing Abstraction, and Modeling</h1>
+<section id="section-abstract">
+      <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
+<p id="section-abstract-1"> This document describes a novel system called Mangrove for obtaining global visibility
+            across the Internet. It achieves this through constructing a comprehensive, unified
+            representation of the Internet's topology and routing behavior by aggregating and
+            indexing diverse data sources. he core challenge is obtaining an accurate, up-to-date
+            model of how packets traverse the global Internet given the Internet's vast scale,
+            dynamic nature, and fragmented visibility across multiple organizations collecting data
+            in different formats.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
+<p id="section-abstract-2">Mangrove addresses this by leveraging the hierarchical structure and natural
+            abstractions of Internet architecture. It collects and integrates data from traceroute
+            measurements, BGP routing tables, IP allocation records, and active broadband
+            measurements. This multi-source data is partitioned and indexed across multiple
+            granularity levels - geographic regions, autonomous systems, and IP prefixes - allowing
+            effective storage, querying, and scalable processing.<a href="#section-abstract-2" class="pilcrow">¶</a></p>
+<p id="section-abstract-3">Mangrove constructs a unified topology and routing representation augmented with an
+            extensible ruleset derived from Internet axioms and measured data. For arbitrary
+            source-destination pairs, it computes estimated packet paths and associated performance
+            metrics at the highest feasible granularity level based on available information
+            completeness. The system handles real-time Internet dynamics through incremental rule
+            refinement using detected changes in routing data and measurements. This enables timely
+            updates to the topology model without full recomputation. Mangrove aims to provide
+            researchers and operators an unprecedented unified Internet view for analysis,
+            optimization, planning, security, and regulatory tasks.<a href="#section-abstract-3" class="pilcrow">¶</a></p>
+</section>
+<div id="status-of-memo">
+<section id="section-boilerplate.1">
+        <h2 id="name-status-of-this-memo">
+<a href="#name-status-of-this-memo" class="section-name selfRef">Status of This Memo</a>
+        </h2>
+<p id="section-boilerplate.1-1">
+        This Internet-Draft is submitted in full conformance with the
+        provisions of BCP 78 and BCP 79.<a href="#section-boilerplate.1-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-2">
+        Internet-Drafts are working documents of the Internet Engineering Task
+        Force (IETF). Note that other groups may also distribute working
+        documents as Internet-Drafts. The list of current Internet-Drafts is
+        at <span><a href="https://datatracker.ietf.org/drafts/current/">https://datatracker.ietf.org/drafts/current/</a></span>.<a href="#section-boilerplate.1-2" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-3">
+        Internet-Drafts are draft documents valid for a maximum of six months
+        and may be updated, replaced, or obsoleted by other documents at any
+        time. It is inappropriate to use Internet-Drafts as reference
+        material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-4">
+        This Internet-Draft will expire on 5 September 2024.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="copyright">
+<section id="section-boilerplate.2">
+        <h2 id="name-copyright-notice">
+<a href="#name-copyright-notice" class="section-name selfRef">Copyright Notice</a>
+        </h2>
+<p id="section-boilerplate.2-1">
+            Copyright (c) 2024 IETF Trust and the persons identified as the
+            document authors. All rights reserved.<a href="#section-boilerplate.2-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.2-2">
+            This document is subject to BCP 78 and the IETF Trust's Legal
+            Provisions Relating to IETF Documents
+            (<span><a href="https://trustee.ietf.org/license-info">https://trustee.ietf.org/license-info</a></span>) in effect on the date of
+            publication of this document. Please review these documents
+            carefully, as they describe your rights and restrictions with
+            respect to this document. Code Components extracted from this
+            document must include Revised BSD License text as described in
+            Section 4.e of the Trust Legal Provisions and are provided without
+            warranty as described in the Revised BSD License.<a href="#section-boilerplate.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="toc">
+<section id="section-toc.1">
+        <a href="#" onclick="scroll(0,0)" class="toplink">▲</a><h2 id="name-table-of-contents">
+<a href="#name-table-of-contents" class="section-name selfRef">Table of Contents</a>
+        </h2>
+<nav class="toc"><ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1">
+            <p id="section-toc.1-1.1.1" class="keepWithNext"><a href="#section-1" class="auto internal xref">1</a>.  <a href="#name-introduction-and-motivation" class="internal xref">Introduction and Motivation</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2">
+            <p id="section-toc.1-1.2.1" class="keepWithNext"><a href="#section-2" class="auto internal xref">2</a>.  <a href="#name-problem-statement" class="internal xref">Problem Statement</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3">
+            <p id="section-toc.1-1.3.1" class="keepWithNext"><a href="#section-3" class="auto internal xref">3</a>.  <a href="#name-internet-structure-overview" class="internal xref">Internet Structure Overview</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4">
+            <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-existing-systems-overview" class="internal xref">Existing Systems Overview</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5">
+            <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-mangrove-a-framework-for-in" class="internal xref">Mangrove: A Framework For Internet Abstraction and Modeling</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.1">
+                <p id="section-toc.1-1.5.2.1.1"><a href="#section-5.1" class="auto internal xref">5.1</a>.  <a href="#name-methodology" class="internal xref">Methodology</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.2">
+                <p id="section-toc.1-1.5.2.2.1"><a href="#section-5.2" class="auto internal xref">5.2</a>.  <a href="#name-system-architecture" class="internal xref">System Architecture</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.3">
+                <p id="section-toc.1-1.5.2.3.1"><a href="#section-5.3" class="auto internal xref">5.3</a>.  <a href="#name-scalability" class="internal xref">Scalability</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.3.2.1">
+                    <p id="section-toc.1-1.5.2.3.2.1.1"><a href="#section-5.3.1" class="auto internal xref">5.3.1</a>.  <a href="#name-geographic" class="internal xref">Geographic</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.3.2.2">
+                    <p id="section-toc.1-1.5.2.3.2.2.1"><a href="#section-5.3.2" class="auto internal xref">5.3.2</a>.  <a href="#name-as" class="internal xref">AS</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.3.2.3">
+                    <p id="section-toc.1-1.5.2.3.2.3.1"><a href="#section-5.3.3" class="auto internal xref">5.3.3</a>.  <a href="#name-subnet-prefix" class="internal xref">Subnet/Prefix</a></p>
+</li>
+                </ul>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6">
+            <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7">
+            <p id="section-toc.1-1.7.1"><a href="#section-7" class="auto internal xref">7</a>.  <a href="#name-security-considerations" class="internal xref">Security Considerations</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8">
+            <p id="section-toc.1-1.8.1"><a href="#appendix-A" class="auto internal xref"></a><a href="#name-authors-addresses" class="internal xref">Authors' Addresses</a></p>
+</li>
+        </ul>
+</nav>
+</section>
+</div>
+<div id="sect-1">
+<section id="section-1">
+      <h2 id="name-introduction-and-motivation">
+<a href="#section-1" class="section-number selfRef">1. </a><a href="#name-introduction-and-motivation" class="section-name selfRef">Introduction and Motivation</a>
+      </h2>
+<p id="section-1-1"> The Internet is a vast and complex network of interconnected devices, spanning the
+            globe and enabling communication between billions of users and systems. Understanding
+            the underlying topology and routing model of the Internet is crucial for researchers,
+            network operators, and service providers to gain insights into routing dynamics,
+            performance characteristics, and potential vulnerabilities. However, the current state
+            of Internet topology and routing mapping is fragmented, with multiple organizations and
+            projects collecting data through various measurement techniques, such as traceroutes,
+            BGP looking glass dumps, and performance metrics. This data is often inconsistent in
+            format, incomplete, and distributed across multiple sources, making it challenging to
+            obtain a comprehensive and unified view of the Internet's topology. We wish to build a
+            system that unifies this information into a single representation of routing and
+            topology models of the Internet at different points in time, allowing for queries to be
+            performed against this representation.<a href="#section-1-1" class="pilcrow">¶</a></p>
+<p id="section-1-2">By creating a comprehensive model of the Internet’s topology and routing dynamics, this
+            system will enable a wide range of applications and analysis, including:<a href="#section-1-2" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-1-3">
+<li id="section-1-3.1">
+          <p id="section-1-3.1.1">Network monitoring/troubleshooting: The ability to detect and localize routing
+            anomalies, such as loops, black holes, or performance degradation can aid in identifying
+            and resolving network issues more efficiently.<a href="#section-1-3.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-1-3.2">
+          <p id="section-1-3.2.1">Vulnerability assessment and security analysis: A unified view of the Internet's
+            topology and routing can help identify potential vulnerabilities, such as single points
+            of failure or routing hijacks, enabling proactive measures to enhance network security
+            and resilience.<a href="#section-1-3.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-1-3.3">
+          <p id="section-1-3.3.1">Traffic Engineering and Capacity Planning: By understanding the flow of traffic
+            across the Internet, service providers can optimize resource allocation, load balancing,
+            and capacity planning, improving overall network performance and efficiency.<a href="#section-1-3.3.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-1-3.4">
+          <p id="section-1-3.4.1">Resilience and Disaster Recovery Planning: Modeling the impact of potential
+            outages or failures on the Internet's topology and routing can inform disaster recovery
+            strategies and contingency plans, ensuring business continuity and minimizing service
+            disruptions.<a href="#section-1-3.4.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-1-3.5">
+          <p id="section-1-3.5.1">Privacy and Regulatory Compliance Analysis: The ability to map data flows across
+            the Internet can aid in identifying potential privacy violations or regulatory
+            non-compliance, enabling organizations to take proactive measures to protect user data
+            and comply with relevant regulations.<a href="#section-1-3.5.1" class="pilcrow">¶</a></p>
+</li>
+      </ol>
+</section>
+</div>
+<div id="sect-2">
+<section id="section-2">
+      <h2 id="name-problem-statement">
+<a href="#section-2" class="section-number selfRef">2. </a><a href="#name-problem-statement" class="section-name selfRef">Problem Statement</a>
+      </h2>
+<p id="section-2-1">Being able to construct a digital twin of a network as large as the Internet comes with
+            unique requirements for our system. These are, in no particular order:<a href="#section-2-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-2-2">
+<li id="section-2-2.1">
+          <p id="section-2-2.1.1">Scalability: The sheer scale of the Internet poses a significant challenge for our
+            system. With over 17 billion devices connected and more than 60,000 networks or
+            Autonomous Systems (ASes), each with its own internal topology, storing information
+            about the paths interconnecting all these devices requires us to employ efficient
+            indexing mechanisms and data structures that enable fast queries over large repositories
+            of data.<a href="#section-2-2.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-2-2.2">
+          <p id="section-2-2.2.1">Diverse Data Sources: The data required for topology mapping is scattered across
+            multiple organizations, each with their own data collection methodologies, formats, and
+            access methods (discussed below). The diversity of formats, from traceroute data to BGP
+            table dumps, coupled with varying updating cadences and access methods, presents a
+            significant challenge. Furthermore, the quality and completeness of the data can vary
+            based on the vantage points of the collectors, leading to potential gaps or
+            inconsistencies. Our system must be capable of integrating data from these diverse
+            sources in a way that is consistent and unified.<a href="#section-2-2.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-2-2.3">
+          <p id="section-2-2.3.1">Partial Information: Many topology measurement techniques, such as traceroutes,
+            can produce incomplete or missing information due to factors like firewalls, packet
+            filters, or unresponsive devices. This is often manifested as missing hops represented
+            by asterisks (*) in the traceroute data. Additionally, BGP routing data lacks
+            granularity below the Autonomous System (AS) level paths. IP geo-mapping databases, used
+            to associate IP addresses with physical locations, also have inherent inaccuracies.
+            Furthermore, performance data may be sampled or estimated statistically rather than
+            being comprehensive. As such, our system must be capable of producing the best-effort
+            topology and routing representation for packets between two hosts, even when the input
+            data is incomplete or partially missing.<a href="#section-2-2.3.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-2-2.4">
+          <p id="section-2-2.4.1">Real-time, Dynamic Updates: The Internet is a highly dynamic environment, with
+            routing changes, network outages, and topology shifts occurring continuously. Events
+            like outages, attacks, or policy changes can trigger changes in the routing behavior,
+            with BGP convergence times ranging from seconds to minutes after an event. New links and
+            nodes are constantly being added, while others are going down. Our system needs
+            mechanisms to detect these relevant changes and incrementally update the topology
+            representation in real-time or near real-time. However, this requirement presents a
+            trade-off between the cost of performing full recomputations versus maintaining and
+            applying deltas or incremental updates. Additionally, our system must meet the time
+            window requirements for how current the topology view needs to be, depending on the
+            specific use case or application.<a href="#section-2-2.4.1" class="pilcrow">¶</a></p>
+</li>
+      </ol>
+</section>
+</div>
+<div id="sect-3">
+<section id="section-3">
+      <h2 id="name-internet-structure-overview">
+<a href="#section-3" class="section-number selfRef">3. </a><a href="#name-internet-structure-overview" class="section-name selfRef">Internet Structure Overview</a>
+      </h2>
+<p id="section-3-1"> At a high level, the objective of our framework is to compute a digital twin of the
+            Internet routing system, and this system is complex:<a href="#section-3-1" class="pilcrow">¶</a></p>
+<p id="section-3-2">The Internet is composed of several layers, each serving a distinct function:<a href="#section-3-2" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-3-3">
+<li id="section-3-3.1">
+          <p id="section-3-3.1.1">Link Layer: Governs the transfer of data between directly connected nodes.<a href="#section-3-3.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-3-3.2">
+          <p id="section-3-3.2.1">Internet Layer: Handles logical addressing and routing of data across the network.<a href="#section-3-3.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-3-3.3">
+          <p id="section-3-3.3.1">Transport Layer: Manages end-to-end communication and ensures reliable data
+            transfer.<a href="#section-3-3.3.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-3-3.4">
+          <p id="section-3-3.4.1">Application Layer: Enables network services and applications to interface with the
+            underlying transport protocols.<a href="#section-3-3.4.1" class="pilcrow">¶</a></p>
+</li>
+      </ol>
+<p id="section-3-4">Sitting on top of these layers, Autonomous Systems (ASes) and the Border Gateway
+            Protocol (BGP) govern how packets traverse networks operated by different administrative
+            entities.<a href="#section-3-4" class="pilcrow">¶</a></p>
+<p id="section-3-5">The behavior of the Internet can be characterized by two principal components: the
+            underlying network topology and the routing policies enforced by the protocol ruleset.
+            Network topology delineates the physical connectivity constraints that determine the
+            paths packets can traverse. However, network infrastructure is in a constant state of
+            flux as devices are continually added, removed, or reconfigured, posing challenges for
+            comprehensive topology measurement outside an AS's purview. Routing policies dictate how
+            packets are forwarded along available paths in accordance with protocol rules. Protocols
+            like Equal-Cost Multi-Path (ECMP) routing introduce complexity, making the determination
+            of single best paths more difficult. Furthermore, most devices do not expose their
+            Forwarding Information Bases (FIBs), obscuring the precise ruleset implementations.<a href="#section-3-5" class="pilcrow">¶</a></p>
+<p id="section-3-6">Consequently, measurements provide the primary evidence of the effects induced by the
+            combination of the underlying topology and the applied routing policies. This
+            abstraction of rule systems onto physical network elements results in observable path
+            properties, such as latency, bandwidth, and jitter, which are crucial for characterizing
+            end-to-end packet delivery performance between nodes.<a href="#section-3-6" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="sect-4">
+<section id="section-4">
+      <h2 id="name-existing-systems-overview">
+<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-existing-systems-overview" class="section-name selfRef">Existing Systems Overview</a>
+      </h2>
+<p id="section-4-1">Current solutions for internet visibility topology generally divide their focuses across
+            two key categories: topology and routing inference and metadata measurement.
+            Additionally, these solutions further subdivide into consumer solutions and enterprise
+            solutions providing a mix of both aggregate and granular data measured in varying units
+            of time.<a href="#section-4-1" class="pilcrow">¶</a></p>
+<p id="section-4-2">Topology and routing measurement solutions employ a collection paradigm that includes:<a href="#section-4-2" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-4-3">
+<li id="section-4-3.1">
+          <p id="section-4-3.1.1">Distributed Nodes: Operated either by the organization itself or external
+            contributors, these nodes form the backbone of data collection efforts.<a href="#section-4-3.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-4-3.2">
+          <p id="section-4-3.2.1">Periodic Traceroute Measurements: Using tools such as paris traceroute,
+            measurements are periodically collected between nodes to infer network topology.<a href="#section-4-3.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-4-3.3">
+          <p id="section-4-3.3.1">Data Inference: The collected data is analyzed to infer the network topology,
+            relying on the information returned by traceroute measurements.<a href="#section-4-3.3.1" class="pilcrow">¶</a></p>
+</li>
+      </ol>
+<p id="section-4-4"> Metadata measurement solutions diverge from topology measurement primarily in the
+            nature of data collected. Unlike topology measurement, which focuses on the structure of
+            the network, metadata measurement seeks to understand the properties of network paths.
+            This requires a significantly larger dataset, typically sourced from a wide user base
+            employing network measurement tools. The process involves:<a href="#section-4-4" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-4-5">
+<li id="section-4-5.1">
+          <p id="section-4-5.1.1"> Connection to a Local Server: Establishing a baseline for measurement by
+            connecting to a server in close proximity to the user.<a href="#section-4-5.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-4-5.2">
+          <p id="section-4-5.2.1"> Connection Saturation: Maximizing the use of the connection to ensure
+            comprehensive data collection.<a href="#section-4-5.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-4-5.3">
+          <p id="section-4-5.3.1"> Measurement Execution: Performing measurements to gather data on the connection.<a href="#section-4-5.3.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-4-5.4">
+          <p id="section-4-5.4.1"> Optional Traceroute Measurement: If feasible, supplementing the measurement with
+            traceroute data for enhanced insight.<a href="#section-4-5.4.1" class="pilcrow">¶</a></p>
+</li>
+        <li id="section-4-5.5">
+          <p id="section-4-5.5.1"> Statistical Inference: Applying statistical methods to the collected data to
+            extrapolate insights on broadband measurements, with a focus on geographical
+            specificity.<a href="#section-4-5.5.1" class="pilcrow">¶</a></p>
+</li>
+      </ol>
+</section>
+</div>
+<div id="sect-5">
+<section id="section-5">
+      <h2 id="name-mangrove-a-framework-for-in">
+<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-mangrove-a-framework-for-in" class="section-name selfRef">Mangrove: A Framework For Internet Abstraction and Modeling</a>
+      </h2>
+<p id="section-5-1">The existing choice between focusing on traceroute data or broadband connection
+            measurements presents a significant trade-off for organizations. To generate an accurate
+            topology, organizations need control: owning the network devices, collecting traceroute
+            data on a consistent schedule, and sending as many traceroutes as possible in ways that
+            maximize inference. However, broadband measurement requires detail and quantity:
+            distributing access nodes, collecting as much consumer information as possible, using
+            traceroutes as only secondary sources of information. This tradeoff in required
+            infrastructure has made it difficult to bridge the gap between topology, path inference,
+            and associated metadata.<a href="#section-5-1" class="pilcrow">¶</a></p>
+<p id="section-5-2">Topology and routing inference is done through the analysis of data retrieved from
+            techniques including traceroute experiments and BGP Looking Glass dumps. This raw data
+            alone provides insight into the ‘real’ structure of the Internet; traceroute
+            measurements form the backbone of most existing Internet topology mapping efforts, and
+            when combined with Autonomous System routing data, can be used to infer the paths that
+            exist throughout the internet. The primary technique for collecting these involves
+            deploying a distributed set of vantage points or measurement nodes across the Internet.
+            These nodes periodically initiate traceroute experiments towards predetermined
+            destination IP addresses or prefixes. Many topology mapping projects like CAIDA's Ark
+            and RIPE Atlas have deployed large measurement infrastructures consisting of hundreds or
+            thousands of vantage points globally. These provide diverse perspectives into Internet
+            paths from different edge networks.<a href="#section-5-2" class="pilcrow">¶</a></p>
+<p id="section-5-3">Most existing platforms focus on either traceroute data collection and analysis, or
+            BGP/routing data. Very few solutions currently attempt an integrated data fusion across
+            measurements, routing, geolocation and performance data.<a href="#section-5-3" class="pilcrow">¶</a></p>
+<p id="section-5-4">We propose the engineering of a scalable system that aggregates and indexes data from
+            various sources to construct a single, unified representation of Internet topology. This
+            representation would provide researchers and network operators with rich information
+            about the connectivity between devices on the Internet, augmented by performance metrics
+            that could inform them about connection quality between networks.<a href="#section-5-4" class="pilcrow">¶</a></p>
+<div id="sect-5-1">
+<section id="section-5.1">
+        <h3 id="name-methodology">
+<a href="#section-5.1" class="section-number selfRef">5.1. </a><a href="#name-methodology" class="section-name selfRef">Methodology</a>
+        </h3>
+<p id="section-5.1-1">To construct this unified representation, our system will leverage the natural
+               abstractions offered by Internet architecture to provide the best level of estimates
+               for topologies and routing decisions. The core methodology involves the following
+               steps:<a href="#section-5.1-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.1-2">
+<li id="section-5.1-2.1">
+            <p id="section-5.1-2.1.1">Data Aggregation: Collect and integrate data from multiple sources, including
+               CAIDA Ark traceroute measurements, BGP looking glass dumps, Regional Internet
+               Registry (RIR) records, and performance data from projects like M-Lab, Ookla, and
+               perfSONAR.<a href="#section-5.1-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.1-2.2">
+            <p id="section-5.1-2.2.1">Abstraction: Leverage the natural abstractions in Internet architecture, such
+               as the Autonomous System (AS) level, to represent topology at different
+               granularities. This allows the system to handle incomplete data and provide estimates
+               at varying resolutions. Represent this as a multidimensional graph where nodes can
+               aggregate, inherit, or point to other nodes on the graph depending on the abstraction
+               layer.<a href="#section-5.1-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.1-2.3">
+            <p id="section-5.1-2.3.1">Rule Generation: Use network axioms to generate an initial set of rules for AS
+               pathing using BGP dumps, traceroute first hops, and business relationships. The
+               system then repeatedly generates and refines lower rule sets using axioms, AS
+               pathing, FIBs, and known clustering policies for levels of resolution from subnet to
+               devices.<a href="#section-5.1-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.1-2.4">
+            <p id="section-5.1-2.4.1">Compression: Completed rules are grouped into sets for their particular header
+               space. The system stores such classes in a tree which represents IP prefixes and
+               addresses. Indexing into and moving down levels for a chosen destination determines
+               the rule-set. This allows for constant-time indexing, with a slight space tradeoff.<a href="#section-5.1-2.4.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.1-2.5">
+            <p id="section-5.1-2.5.1">Path Inference: For a given source and destination IP address pair, the system
+               will attempt to provide the highest certainty estimate of the path a packet would
+               take, based on the aggregated data and rule trie. If complete traceroute data is
+               available, it will be used to provide a detailed IP-level path. If not, the system
+               will attempt to construct a path using the rule set for its IP prefix and graph edge
+               weights. The final fall back is to AS-level paths derived from BGP routing
+               information.<a href="#section-5.1-2.5.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.1-2.6">
+            <p id="section-5.1-2.6.1">Performance Enrichment: Augment the topology representation with performance
+               metrics, such as bandwidth, latency, and throughput, obtained from sources like M-Lab
+               and Ookla. Such data can be added by matching consumer collected traceroutes with
+               those of topology measurement solutions. For AS-level paths, performance metrics can
+               be averaged across nodes within each AS.<a href="#section-5.1-2.6.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+<p id="section-5.1-3">With the above, we will provide users with an interface that they may use to query
+               the path that a packet would take between any two arbitrary source and destination IP
+               addresses. Our system will leverage all of the information it has aggregated to
+               provide a ‘best estimate’ of this path, while augmenting this with performance
+               metrics at the highest level of resolution.<a href="#section-5.1-3" class="pilcrow">¶</a></p>
+<p id="section-5.1-4">To illustrate this, we consider a sample user query where a user wishes to know the
+               path a packet would take between source IP address A and destination IP address B.<a href="#section-5.1-4" class="pilcrow">¶</a></p>
+<p id="section-5.1-5">At a high level, our system will do the following:<a href="#section-5.1-5" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.1-6">
+<li id="section-5.1-6.1">
+            <p id="section-5.1-6.1.1">Map each IP address to their corresponding AS numbers: the system will maintain
+               an IP address to AS lookup as a result of aggregating this data from several sources
+               over time. The most recent match for the IP address will be used.<a href="#section-5.1-6.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.1-6.2">
+            <p id="section-5.1-6.2.1">Analyze BGP routing data for each corresponding AS: if the IP addresses lie in
+               separate autonomous systems, we may query each of the corresponding BGP table
+               representations for each AS to determine the AS path that a packet will use to get
+               from A to B.<a href="#section-5.1-6.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.1-6.3">
+            <p id="section-5.1-6.3.1">Infer AS-level Path: After determining the AS numbers for the source and
+               destination IP addresses, and analyzing the BGP routing data for the corresponding
+               ASes, the system can infer the AS-level path that a packet would take from the source
+               AS to the destination AS. This AS-level path would be a sequence of AS numbers,
+               representing the path through different Autonomous Systems.<a href="#section-5.1-6.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.1-6.4">
+            <p id="section-5.1-6.4.1">Retrieve Traceroute Data for Each AS Hop: For each AS hop in the inferred
+               AS-level path, the system will attempt to retrieve relevant traceroute data to
+               reconstruct the IP-level path within that AS. This can be done by querying the
+               indexed traceroute data based on the source and destination AS numbers for that
+               particular hop.<a href="#section-5.1-6.4.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.1-6.5">
+            <p id="section-5.1-6.5.1">Reconstruct IP-level Path Within Each AS: If traceroute data is available for
+               an AS hop, the system will use that data to reconstruct the IP-level path within that
+               AS.If no traceroute data is available, the system will treat that AS hop as a single
+               hop in the final path, representing the AS-level transition.<a href="#section-5.1-6.5.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.1-6.6">
+            <p id="section-5.1-6.6.1">Handle Missing Hops and Incomplete Paths: If there are missing hops
+               (represented by *) within an AS hop, the system will group consecutive * hops and
+               represent them as a single AS-level hop in the final path. If no traceroute data is
+               available for an entire AS hop, the system will represent that hop at the AS-level in
+               the final path. This illustrates our concept of ‘granularity’ - where there is
+               missing data at a specific resolution, we may resort to using data at a lower
+               resolution (the AS level) to still provide some insight into the path.<a href="#section-5.1-6.6.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.1-6.7">
+            <p id="section-5.1-6.7.1">Associate Performance Metrics: The system can then associate relevant
+               performance metrics, such as latency, bandwidth, or throughput, with each hop in the
+               final path. In cases where our system must resort to lower resolutions, we may use
+               aggregation and averaging techniques to provide a rough estimate on connectivity
+               statistics for that portion of the path.<a href="#section-5.1-6.7.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+</section>
+</div>
+<div id="sect-5-2">
+<section id="section-5.2">
+        <h3 id="name-system-architecture">
+<a href="#section-5.2" class="section-number selfRef">5.2. </a><a href="#name-system-architecture" class="section-name selfRef">System Architecture</a>
+        </h3>
+<p id="section-5.2-1">The proposed system will consist of the following key components:<a href="#section-5.2-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.2-2">
+<li id="section-5.2-2.1">
+            <p id="section-5.2-2.1.1">Data Collectors: Modules responsible for fetching and processing data from
+               various sources, such as CAIDA Ark, BGP looking glass servers, RIRs, and performance
+               measurement platforms.<a href="#section-5.2-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.2-2.2">
+            <p id="section-5.2-2.2.1">Data Unification Engine: A central component that integrates and indexes the
+               collected data into a unified representation, handling data format conversions,
+               deduplication, and consistency checks.<a href="#section-5.2-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.2-2.3">
+            <p id="section-5.2-2.3.1">Topology Database: A scalable and distributed data store designed to store and
+               query the unified topology representation, supporting both IP-level and AS-level
+               granularities. The data will be represented as a multi-dimensional graph, its
+               associated rule sets in equivalence classes, and a compressed trie.<a href="#section-5.2-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.2-2.4">
+            <p id="section-5.2-2.4.1">Query Engine: An engine with a custom query language that can quickly join data
+               at multiple levels of resolution depending on the user request.<a href="#section-5.2-2.4.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.2-2.5">
+            <p id="section-5.2-2.5.1">Interface: An API or user interface that allows researchers and network
+               operators to submit source-destination IP pairs and retrieve the corresponding
+               estimated paths, along with associated performance metrics.<a href="#section-5.2-2.5.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.2-2.6">
+            <p id="section-5.2-2.6.1">Real-time Update Handler: A component that monitors for changes in the
+               underlying data sources and triggers updates to the topology representation, ensuring
+               it remains current with the dynamic nature of the Internet.<a href="#section-5.2-2.6.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+</section>
+</div>
+<div id="sect-5-3">
+<section id="section-5.3">
+        <h3 id="name-scalability">
+<a href="#section-5.3" class="section-number selfRef">5.3. </a><a href="#name-scalability" class="section-name selfRef">Scalability</a>
+        </h3>
+<p id="section-5.3-1">With regards to discussion about scalabiltiy, the partitioning and distribution of
+               data across different levels can be structured as follows:<a href="#section-5.3-1" class="pilcrow">¶</a></p>
+<div id="sect-5-3-1">
+<section id="section-5.3.1">
+          <h4 id="name-geographic">
+<a href="#section-5.3.1" class="section-number selfRef">5.3.1. </a><a href="#name-geographic" class="section-name selfRef">Geographic</a>
+          </h4>
+<p id="section-5.3.1-1">At the geographic level, the system can partition the data based on geographic
+                  regions or clusters. This level is responsible for storing and managing the BGP
+                  routing data for the Autonomous Systems (ASes) within each geographic cluster. The
+                  primary function of this level is to handle AS-level path inference and resolution
+                  based on the BGP routing data.<a href="#section-5.3.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="sect-5-3-2">
+<section id="section-5.3.2">
+          <h4 id="name-as">
+<a href="#section-5.3.2" class="section-number selfRef">5.3.2. </a><a href="#name-as" class="section-name selfRef">AS</a>
+          </h4>
+<p id="section-5.3.2-1">Within each geographic partition, the system can further partition the data by
+                  individual AS. At this level, each AS is responsible for storing and managing its
+                  own internal routing topology and traceroute data. This level is designed to
+                  handle IP-level path reconstruction and inference within the boundaries of a
+                  single AS.<a href="#section-5.3.2-1" class="pilcrow">¶</a></p>
+<p id="section-5.3.2-2">The AS-level partitions can maintain the following data:<a href="#section-5.3.2-2" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3.2-3">
+<li id="section-5.3.2-3.1">
+              <p id="section-5.3.2-3.1.1">Internal Routing Topology: This includes the router-level topology within
+                  the AS, representing the interconnections between routers and network devices.<a href="#section-5.3.2-3.1.1" class="pilcrow">¶</a></p>
+</li>
+            <li id="section-5.3.2-3.2">
+              <p id="section-5.3.2-3.2.1">Traceroute Data: Traceroute measurements conducted within the AS, capturing
+                  the IP-level paths between different ingress and egress points or subnets.<a href="#section-5.3.2-3.2.1" class="pilcrow">¶</a></p>
+</li>
+            <li id="section-5.3.2-3.3">
+              <p id="section-5.3.2-3.3.1">Performance Metrics: Performance data (e.g., latency, bandwidth) associated
+                  with links or paths within the AS, obtained from sources like M-Lab or Ookla.<a href="#section-5.3.2-3.3.1" class="pilcrow">¶</a></p>
+</li>
+          </ol>
+</section>
+</div>
+<div id="sect-5-3-3">
+<section id="section-5.3.3">
+          <h4 id="name-subnet-prefix">
+<a href="#section-5.3.3" class="section-number selfRef">5.3.3. </a><a href="#name-subnet-prefix" class="section-name selfRef">Subnet/Prefix</a>
+          </h4>
+<p id="section-5.3.3-1">To further enhance granularity and scalability, the system can introduce an
+                  additional level of partitioning at the subnet or IP prefix level. This level can
+                  store traceroute data and performance metrics specific to individual subnets or IP
+                  prefixes within an AS.<a href="#section-5.3.3-1" class="pilcrow">¶</a></p>
+<p id="section-5.3.3-2">By partitioning the data at these multiple levels, the system can distribute the
+                  workload and storage requirements across different components, allowing for
+                  parallel processing and improved scalability.<a href="#section-5.3.3-2" class="pilcrow">¶</a></p>
+<p id="section-5.3.3-3">The workflow for resolving a path between a source and destination IP address
+                  would involve the following steps:<a href="#section-5.3.3-3" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3.3-4">
+<li id="section-5.3.3-4.1">
+              <p id="section-5.3.3-4.1.1">The geographic partition responsible for the source and destination ASes is
+                  identified, and the AS-level path is determined using the BGP routing data.<a href="#section-5.3.3-4.1.1" class="pilcrow">¶</a></p>
+</li>
+            <li id="section-5.3.3-4.2">
+              <p id="section-5.3.3-4.2.1">For each AS hop in the inferred AS-level path, the corresponding AS
+                  partition is queried to retrieve traceroute data and reconstruct the IP-level path
+                  within that AS.<a href="#section-5.3.3-4.2.1" class="pilcrow">¶</a></p>
+</li>
+            <li id="section-5.3.3-4.3">
+              <p id="section-5.3.3-4.3.1">If further granularity is required or available, the subnet/prefix level
+                  partitions can be consulted to obtain more detailed traceroute data and
+                  performance metrics for specific IP prefixes or subnets along the path.<a href="#section-5.3.3-4.3.1" class="pilcrow">¶</a></p>
+</li>
+          </ol>
+</section>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="sect-6">
+<section id="section-6">
+      <h2 id="name-iana-considerations">
+<a href="#section-6" class="section-number selfRef">6. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
+      </h2>
+<p id="section-6-1"> This document has no actions for IANA.<a href="#section-6-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="sect-7">
+<section id="section-7">
+      <h2 id="name-security-considerations">
+<a href="#section-7" class="section-number selfRef">7. </a><a href="#name-security-considerations" class="section-name selfRef">Security Considerations</a>
+      </h2>
+<p id="section-7-1"> The collection, distribution of MoWIE information should consider the security
+            requirements on information privacy and information integration protection and
+            authentication in both sides. Since the network status is not directly related to any
+            special user, there is currently no any privacy issue. But the information transmitted
+            to the application can pass through a lot of middle box and can be changed by the man in
+            the middle. To protect the network information, an end to end encryption and integration
+            is needed. Also, the network needs to authenticate the information exposure provided to
+            right applications. These security requirements can be implemented by the TLS and other
+            security mechanisms.<a href="#section-7-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="authors-addresses">
+<section id="appendix-A">
+      <h2 id="name-authors-addresses">
+<a href="#name-authors-addresses" class="section-name selfRef">Authors' Addresses</a>
+      </h2>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Y. Richard Yang</span></div>
+<div dir="auto" class="left"><span class="org">Yale University</span></div>
+<div dir="auto" class="left"><span class="street-address">Watson 208A, 51 Prospect Street<br>New Haven, CT 06511<br>United States of America</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:yang.r.yang@yale.edu" class="email">yang.r.yang@yale.edu</a>
+</div>
+</address>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Bradley Lewis</span></div>
+<div dir="auto" class="left"><span class="org">Yale University</span></div>
+<div dir="auto" class="left"><span class="street-address">33 Lynwood Pl<br>New Haven, CT 06511<br>United States of America</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:bradley.lewis@yale.edu" class="email">bradley.lewis@yale.edu</a>
+</div>
+</address>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Daniel Mertus</span></div>
+<div dir="auto" class="left"><span class="org">Yale University</span></div>
+<div dir="auto" class="left"><span class="street-address">Unit 404, 367 Elm Street<br>New Haven, CT 06511<br>United States of America</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:daniel.mertus@yale.edu" class="email">daniel.mertus@yale.edu</a>
+</div>
+</address>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Alex Shi</span></div>
+<div dir="auto" class="left"><span class="org">Yale University</span></div>
+<div dir="auto" class="left"><span class="street-address">33 Lynwood Pl<br>New Haven, CT 06511<br>United States of America</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:alex.shi@yale.edu" class="email">alex.shi@yale.edu</a>
+</div>
+</address>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Joseph Zhang</span></div>
+<div dir="auto" class="left"><span class="org">Yale University</span></div>
+<div dir="auto" class="left"><span class="street-address">33 Lynwood Pl<br>New Haven, CT 06511<br>United States of America</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:joseph.zhang@yale.edu" class="email">joseph.zhang@yale.edu</a>
+</div>
+</address>
+</section>
+</div>
+<script>const toc = document.getElementById("toc");
+toc.querySelector("h2").addEventListener("click", e => {
+  toc.classList.toggle("active");
+});
+toc.querySelector("nav").addEventListener("click", e => {
+  toc.classList.remove("active");
+});
+</script>
+</body>
+</html>
