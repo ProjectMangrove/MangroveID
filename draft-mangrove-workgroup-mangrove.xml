@@ -5,7 +5,7 @@
   <!ENTITY nbhy   "&#8209;">
   <!ENTITY wj     "&#8288;">
 ]>
-<rfc xmlns:xi="http://www.w3.org/2001/XInclude" submissionType="IETF" docName="draft-mangrove-workgroup-mangrove-00" category="std" ipr="trust200902" obsoletes="" updates="" xml:lang="en" symRefs="true" sortRefs="true" tocInclude="true" version="3">
+<rfc xmlns:xi="http://www.w3.org/2001/XInclude" submissionType="IETF" docName="draft-mangrove-workgroup-mangrove-latest" category="std" ipr="trust200902" obsoletes="" updates="" xml:lang="en" symRefs="true" sortRefs="true" tocInclude="true" version="3">
   <!-- xml2rfc v2v3 conversion 3.20.0 -->
   <front>
     <title>Mangrove: A Unified Framework for Internet Topology, Routing Abstraction, and Modeling</title>
